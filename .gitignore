@@ -7,6 +7,7 @@
 !/assets/
 !/config.env
 !/LAB_GUIDE_LUCI.md
+!/README.md
 !/.gitignore
 
 # Within the allowed folders, ignore any temporary or compiled files
