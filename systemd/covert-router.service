@@ -1,0 +1,20 @@
+[Unit]
+Description=Covert SD-WAN Travel Router Takeover
+After=docker.service network.target
+Requires=docker.service
+Before=tailscaled.service rustdesk.service
+
+[Service]
+Type=simple
+# We want this script to run in the foreground and stay alive to monitor the container.
+# If the container dies and the script exits, systemd will restart it.
+ExecStart=/bin/bash /opt/covert-router/covert_takeover.sh
+Restart=always
+RestartSec=5
+# Allow the script to handle clean up (returning interfaces to the host) when stopped
+ExecStop=/bin/bash /opt/covert-router/covert_takeover.sh stop
+KillMode=control-group
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

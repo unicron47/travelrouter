@@ -1,0 +1,22 @@
+# Ignore everything in the root directory by default...
+/*
+
+# ...Except for these specific files and folders required for the V5 Dark Boot Architecture
+!/scripts/
+!/systemd/
+!/assets/
+!/config.env
+!/LAB_GUIDE_LUCI.md
+!/.gitignore
+
+# Within the allowed folders, ignore any temporary or compiled files
+*.log
+*.tmp
+.DS_Store
+*Zone.Identifier
+GEMINI.md
+
+# Explicitly ensure we never upload the massive OpenWrt ImageBuilder environments
+openwrt-imagebuilder-*
+*.tar.gz
+*.tar.zst
