@@ -15,11 +15,18 @@ install_system_dependencies() {
         curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
         # SECURITY NOTE: fetched over HTTPS from docker.com. For production, pin and verify.
         exec_or_log sh /tmp/get-docker.sh
+
+        # Ensure docker group exists before adding user (get-docker.sh usually does this, but we force it)
+        exec_or_log groupadd -f docker
         exec_or_log usermod -aG docker "$USER"
+
         rm -f /tmp/get-docker.sh
         log_success "Docker installed."
     else
         log_info "Docker already installed."
+        # Even if installed, ensure the current user is in the group for lab convenience
+        exec_or_log groupadd -f docker
+        exec_or_log usermod -aG docker "$USER"
     fi
     log_success "System dependencies installed."
 }

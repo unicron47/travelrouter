@@ -21,7 +21,13 @@ compile_alfa_driver() {
                 repo_dir="/tmp/$(basename "${ALFA_DRIVER_REPO_8812AU}" .git)"
                 rm -rf "$repo_dir"
                 git clone "${ALFA_DRIVER_REPO_8812AU}" "$repo_dir"
-                exec_or_log "$repo_dir/install-driver.sh" NoPrompt                     || die "Failed to compile ALFA driver."
+                
+                # We must CD into the directory because the installer uses relative paths for config files
+                (
+                    cd "$repo_dir" || die "Failed to enter driver directory: $repo_dir"
+                    exec_or_log ./install-driver.sh NoPrompt
+                ) || die "Failed to compile ALFA driver."
+                
                 log_success "RTL8812AU driver installed."
             else
                 log_info "RTL8812AU driver already installed via DKMS."
