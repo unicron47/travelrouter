@@ -8,7 +8,11 @@ install_system_dependencies() {
     exec_or_log apt-get update
 
     log_info "Installing required packages..."
-    exec_or_log apt-get install -y "linux-headers-$(uname -r)" build-essential dkms git bc curl wget jq zstd
+    exec_or_log apt-get install -y "linux-headers-$(uname -r)" build-essential dkms git bc curl wget jq zstd qemu-user-static binfmt-support gawk gettext python3 unzip file rsync
+
+    log_info "Importing OpenWrt Release GPG Key..."
+    # Key for OpenWrt 24.10 release (Hauke Mehrtens)
+    exec_or_log gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys F1B767859CB2EBC7
 
     log_info "Installing Docker Engine..."
     if ! command -v docker &> /dev/null; then
