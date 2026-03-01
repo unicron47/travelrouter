@@ -46,37 +46,59 @@ build_openwrt_image() {
 
     # Detect if we are running on a non-x86-64 host (e.g. Raspberry Pi ARM64).
     # The ImageBuilder ships x86-64 host tools and cannot run natively on ARM.
-    # We use a Docker x86-64 container with QEMU binfmt emulation as a workaround.
+    # We install qemu-user-static via apt and run the build inside a Docker
+    # x86-64 container, which the kernel will transparently emulate via binfmt.
     local host_arch
     host_arch=$(uname -m)
 
     if [ "$host_arch" = "x86_64" ]; then
-        # Native — run directly
+        # Native x86-64 — run make directly
         exec_or_log make -j"$(nproc)" image PROFILE="generic" \
             PACKAGES="${OPENWRT_PACKAGES}" \
             FILES="${PROJECT_ROOT}/assets/openwrt_files"
     else
-        log_warn "Non-x86-64 host detected ($host_arch). Using Docker + QEMU emulation to run ImageBuilder..."
+        log_warn "Non-x86-64 host detected ($host_arch). Using Docker + QEMU to run ImageBuilder..."
 
-        # Register QEMU binfmt handlers so x86-64 binaries run under emulation
-        if ! $DRY_RUN; then
-            if ! docker run --rm --privileged multiarch/qemu-user-static --reset -p yes >/dev/null 2>&1; then
-                die "Failed to register QEMU binfmt handlers. Is Docker installed and running?"
+        if [ "${DRY_RUN:-false}" != "true" ]; then
+            # Step 1: install qemu-user-static so the kernel can run x86-64 binaries
+            log_info "Installing qemu-user-static for x86-64 emulation..."
+            apt-get install -y qemu-user-static
+
+            # Step 2: verify binfmt_misc is mounted (required for transparent emulation)
+            if ! mount | grep -q binfmt_misc; then
+                log_info "Mounting binfmt_misc..."
+                mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc 2>/dev/null || true
+            fi
+
+            # Step 3: register x86-64 binfmt handler if not already registered
+            if [ ! -f /proc/sys/fs/binfmt_misc/qemu-x86_64 ]; then
+                log_info "Registering x86-64 binfmt handler..."
+                update-binfmts --enable qemu-x86_64 2>/dev/null || \
+                    log_warn "update-binfmts not available — emulation may rely on Docker's built-in support."
             fi
         fi
 
-        # Run make inside an x86-64 Ubuntu container with the ImageBuilder dir mounted
+        # Step 4: run the build inside an x86-64 Docker container
+        # Docker + qemu-user-static handles the emulation transparently
         exec_or_log docker run --rm --platform linux/amd64 \
+            -v "${PROJECT_ROOT}:/project" \
             -v "$(pwd):/build" \
             -w /build \
             ubuntu:22.04 \
             bash -c "
+                export DEBIAN_FRONTEND=noninteractive && \
                 apt-get update -qq && \
-                apt-get install -y -qq make python3 libncurses5 zlib1g libssl-dev wget unzip && \
+                apt-get install -y -qq \
+                    make python3 libncurses5 zlib1g libssl-dev \
+                    wget unzip rsync gawk gettext xsltproc && \
                 make -j$(nproc) image PROFILE=generic \
                     PACKAGES='${OPENWRT_PACKAGES}' \
-                    FILES='${PROJECT_ROOT}/assets/openwrt_files'
+                    FILES='/project/assets/openwrt_files'
             "
+
+        log_info "Copying build output back to host..."
+        # The built image lands in bin/targets inside the ImageBuilder dir
+        log_info "Built images are in: $(pwd)/bin/targets/"
     fi
 
     log_success "OpenWrt custom image built."
