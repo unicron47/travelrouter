@@ -10,6 +10,10 @@
 
 set -euo pipefail
 
+# Preserve the invoking user's PATH so tools like Docker installed in
+# /usr/local/bin are still findable when the script runs as root via sudo.
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 

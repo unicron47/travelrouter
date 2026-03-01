@@ -78,9 +78,21 @@ build_openwrt_image() {
             fi
         fi
 
-        # Step 4: run the build inside an x86-64 Docker container
+        # Step 4: locate the docker binary explicitly.
+        # 'sudo' uses a restricted PATH that often excludes /usr/local/bin
+        # where Docker is installed — so we search known locations directly.
+        local DOCKER_BIN
+        DOCKER_BIN=$(command -v docker 2>/dev/null \
+            || ls /usr/local/bin/docker /usr/bin/docker 2>/dev/null | head -1 \
+            || true)
+        if [ -z "$DOCKER_BIN" ]; then
+            die "Docker binary not found. Make sure Docker is installed and try: sudo $(realpath "$0")"
+        fi
+        log_info "Using Docker at: $DOCKER_BIN"
+
+        # Step 5: run the build inside an x86-64 Docker container
         # Docker + qemu-user-static handles the emulation transparently
-        exec_or_log docker run --rm --platform linux/amd64 \
+        exec_or_log "$DOCKER_BIN" run --rm --platform linux/amd64 \
             -v "${PROJECT_ROOT}:/project" \
             -v "$(pwd):/build" \
             -w /build \
